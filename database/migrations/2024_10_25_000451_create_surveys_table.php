@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->unsignedBigInteger('requested_by')->nullable();
             $table->date('survey_date')->nullable();
-            $table->enum("survey_status",['Requested','Approved','Rejected']);
+            $table->enum("survey_status",['New Leads','Follow Up','Survey Request','Survey Approved','Survey Rejected','Survey Completed','Final Proposal','Deal']);
             $table->text('notes')->nullable();
             $table->string('image')->nullable();
             $table->timestamps();

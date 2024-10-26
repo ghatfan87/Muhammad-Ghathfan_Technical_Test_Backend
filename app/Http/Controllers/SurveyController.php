@@ -21,23 +21,17 @@ class SurveyController extends Controller
                 'requested_by' => 'required|exists:users,id',
             ]);
     
-            // Update status lead menjadi "survey_request"
             $lead = Lead::findOrFail($request->lead_id);
-            $lead->survey_status = 'Requested';
+            $lead->survey_status = 'Survey Request';
             $lead->save();
     
-            // Membuat entri survei baru dan menyimpan lead_id
             $survey = Survey::create([
-                'lead_id' => $lead->id, // Menyimpan lead_id
+                'lead_id' => $lead->id, 
                 'requested_by' => $request->requested_by,
-                'survey_status' => 'Requested', // Atau status awal lain yang sesuai
-                // Tambahkan kolom lain yang diperlukan
+                'survey_status' => 'Survey Request', 
             ]);
     
-            return ApiFormatter::createAPI(200, 'Survey requested successfully', [
-                'lead' => $lead,
-                'survey' => $survey,
-            ]);
+            return ApiFormatter::createAPI(200, 'Survey requested successfully',$survey,);
         } catch (Exception $error) {
             return ApiFormatter::createAPI(400, 'Survey request failed', $error->getMessage());
         }
@@ -47,36 +41,35 @@ class SurveyController extends Controller
     {
         try {
             $request->validate([
-                'survey_status' => 'required|in:Requested,Approved,Rejected',
+                'survey_status' => 'nullable|in:New Leads,Follow Up,Survey Request,Survey Approved,Survey Rejected,Survey Completed,Final Proposal,Deal',
                 'approved_by' => 'nullable|exists:users,id',
                 'rejected_by' => 'nullable|exists:users,id'
             ]);
     
-            // Log ID yang diterima untuk debugging
-            Log::info("Updating survey status: ", [
-                'surveyId' => $surveyId,
-                'approved_by' => $request->approved_by,
-                'rejected_by' => $request->rejected_by,
-            ]);
-    
             $survey = Survey::findOrFail($surveyId);
+
+            if ($request->role== 'operational') {
+                return ApiFormatter::createAPI(403, 'only operational can approve or reject surveys');
+            }
+    
             $survey->survey_status = $request->survey_status;
             $survey->approved_by = $request->approved_by;
     
-            // Hanya assign rejected_by jika ada nilai
             if ($request->has('rejected_by')) {
-                $survey->rejected_by = $request->rejected_by; // Pastikan ini valid
+                $survey->rejected_by = $request->rejected_by;
             }
     
             $survey->save();
     
-            // Update status lead sesuai dengan status survey
             $lead = Lead::findOrFail($survey->lead_id);
             $lead->survey_status = $request->survey_status;
             $lead->save();
     
-            return ApiFormatter::createAPI(200, 'Survey status updated successfully', $survey);
+            return ApiFormatter::createAPI(200, 'Survey status updated successfully',$survey);
+            
+    
         } catch (Exception $error) {
+            Log::error("Error updating survey status: " . $error->getMessage());
             return ApiFormatter::createAPI(400, 'Survey status update failed', $error->getMessage());
         }
     }
@@ -85,8 +78,8 @@ class SurveyController extends Controller
     {
         try {
             $request->validate([
-                'notes' => 'required|string|max:500',
-                'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'notes' => 'nullable|string|max:500',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
 
             $survey = Survey::findOrFail($surveyId);
@@ -98,12 +91,11 @@ class SurveyController extends Controller
             }
 
             $survey->notes = $request->notes;
-            $survey->survey_status = 'survey_completed';
+            $survey->survey_status = 'Survey Completed';
             $survey->save();
 
-            // Update status lead menjadi "survey_completed"
             $lead = Lead::findOrFail($survey->lead_id);
-            $lead->survey_status = 'survey_completed';
+            $lead->survey_status = 'Survey Completed';
             $lead->save();
 
             return ApiFormatter::createAPI(200, 'Survey completed successfully', $survey);

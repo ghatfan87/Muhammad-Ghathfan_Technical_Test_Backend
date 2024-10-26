@@ -50,18 +50,16 @@ class LeadController extends Controller
     {
 
         try {
-            // Validasi input lead  
             $request->validate([
                 'lead_name' => 'required|string|max:255',
                 'email' => 'required|email|unique:leads,email',
                 'phone_number' => 'required|string|max:15',
                 'sales_type' => 'required|in:residential,commercial,both',
                 'notes' => 'required|string',
-                'survey_status' => 'nullable|in:Requested,Approved,Rejected' // Tambahkan survey_status dengan nilai opsional
+                'survey_status' => 'nullable|in:New Lead,Follow Up,Survey Request,Survey Approved,Survey Rejected','Survey Completed','Final Proposal','Deal'
             ]);
     
             $salesTypeRequired = $request->sales_type;
-            Log::info("Sales type required: " . $salesTypeRequired);
     
             $nextSalesperson = User::where('role', 'salesperson')
                 ->where(function($query) use ($salesTypeRequired) {
@@ -76,7 +74,6 @@ class LeadController extends Controller
                 return ApiFormatter::createAPI(400, 'No suitable Salesperson available');
             }
     
-            // Buat lead baru dan assign ke salesperson yang ditemukan
             $lead = Lead::create([
                 'lead_name' => $request->lead_name,
                 'email' => $request->email,
@@ -84,7 +81,7 @@ class LeadController extends Controller
                 'sales_type' => $salesTypeRequired,
                 'notes' => $request->notes,
                 'assigned_to' => $nextSalesperson->id,
-                'survey_status' => $request->survey_status ?? 'Requested', // Default ke `requested` jika kosong
+                'survey_status' => $request->survey_status ?? 'New Leads', 
             ]);
     
             $nextSalesperson->last_assigned = now();
@@ -93,7 +90,6 @@ class LeadController extends Controller
             return ApiFormatter::createAPI(200, 'Lead created and assigned successfully', $lead);
     
         } catch (Exception $error) {
-            Log::error("Error creating lead: " . $error->getMessage());
             return ApiFormatter::createAPI(400, 'Failed to create lead', $error->getMessage());
         }
     }
