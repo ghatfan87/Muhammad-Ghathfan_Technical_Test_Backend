@@ -46,6 +46,7 @@ class LeadController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
+
     public function store(Request $request)
     {
 
@@ -127,9 +128,55 @@ class LeadController extends Controller
      * @param  \App\Models\Lead  $lead
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Lead $lead)
+    public function update(Request $request,$id)
     {
-        //
+        try {
+            // Validasi input
+            $request->validate([
+                'lead_name' => 'nullable|string|max:255',
+                'email' => 'nullable|email|unique:leads,email,' . $id,
+                'phone_number' => 'nullable|string|max:15',
+                'sales_type' => 'nullable|in:residential,commercial,both',
+                'notes' => 'nullable|string',
+                'survey_status' => 'nullable|in:New LeadS,Follow Up,Survey Request,Survey Approved,Survey Rejected,Survey Completed,Final Proposal,Deal',
+                'assigned_to' => 'nullable|exists:users,id' 
+            ]);
+    
+            $lead = Lead::findOrFail($id);
+    
+            $lead->lead_name = $request->lead_name ?? $lead->lead_name;
+            $lead->email = $request->email ?? $lead->email;
+            $lead->phone_number = $request->phone_number ?? $lead->phone_number;
+            $lead->sales_type = $request->sales_type ?? $lead->sales_type;
+            $lead->notes = $request->notes ?? $lead->notes;
+            $lead->survey_status = $request->survey_status ?? $lead->survey_status;
+    
+            // Update assigned_to jika diberikan
+            if ($request->has('assigned_to')) {
+                $newSalesperson = User::where('id', $request->assigned_to)
+                                      ->where('role', 'salesperson')
+                                      ->first();
+    
+                if (!$newSalesperson) {
+                    return ApiFormatter::createAPI(400, 'The selected user is not a Salesperson or does not exist');
+                }
+    
+                $lead->assigned_to = $newSalesperson->id;
+    
+                // Update waktu terakhir assigned untuk Salesperson baru
+                $newSalesperson->last_assigned = now();
+                $newSalesperson->save();
+            }
+    
+            $lead->save();
+    
+            return ApiFormatter::createAPI(200, 'salesperson updated successfully', $lead);
+    
+        } catch (Exception $e) {
+            return ApiFormatter::createAPI(404, 'Lead not found');
+        } catch (Exception $error) {
+            return ApiFormatter::createAPI(400, 'Failed to update lead', $error->getMessage());
+        }
     }
 
     /**
@@ -138,8 +185,20 @@ class LeadController extends Controller
      * @param  \App\Models\Lead  $lead
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Lead $lead)
+    public function destroy($id)
     {
-        //
+        try {
+            $leads = Lead::findOrFail($id);
+            $proses = $leads->delete();
+
+            if($proses) {
+                return ApiFormatter::createAPI(200, 'success delete data!');
+            } else {
+                return ApiFormatter::createAPI(400, 'Failed');
+            }
+        } catch (Exception $error) {
+            return ApiFormatter::createAPI(400, 'Failed',$error->getMessage());
+        }
     }
+    
 }

@@ -60,7 +60,6 @@ class UserController extends Controller
             'sales_type' => ['nullable', ValidationRule::in(['residential', 'commercial', 'both'])], // Optional for Salesperson only
         ]);
 
-        // Create a new user
         $user = new User();
         $user->name = $request->name;
         $user->email = $request->email;
@@ -131,6 +130,19 @@ class UserController extends Controller
      */
     public function destroy($id)
     {
-        //
+        try {
+            // Cari pengguna berdasarkan ID
+            $user = User::findOrFail($id);
+    
+            // Hapus pengguna
+            $user->delete();
+    
+            return ApiFormatter::createAPI(200, 'User deleted successfully');
+    
+        } catch (Exception $e) {
+            return ApiFormatter::createAPI(404, 'User not found');
+        } catch (Exception $error) {
+            return ApiFormatter::createAPI(400, 'Failed to delete user', $error->getMessage());
+        }
     }
 }

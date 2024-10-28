@@ -13,6 +13,21 @@ use Illuminate\Support\Facades\Log;
 class SurveyController extends Controller
 {
 
+    public function index()
+    {
+        try {
+            $survey = Lead::all();
+
+            if ($survey->isEmpty()) {
+                return ApiFormatter::createAPI(404, 'No Leads Found');
+            } else {
+                return ApiFormatter::createAPI(200, 'Success', $survey);
+            }
+        } catch (Exception $e) {
+            return ApiFormatter::createAPI(500, 'Internal Server Error');
+        }
+    }
+
     public function requestSurvey(Request $request)
     {
         try {
@@ -20,18 +35,18 @@ class SurveyController extends Controller
                 'lead_id' => 'required|exists:leads,id',
                 'requested_by' => 'required|exists:users,id',
             ]);
-    
+
             $lead = Lead::findOrFail($request->lead_id);
             $lead->survey_status = 'Survey Request';
             $lead->save();
-    
+
             $survey = Survey::create([
-                'lead_id' => $lead->id, 
+                'lead_id' => $lead->id,
                 'requested_by' => $request->requested_by,
-                'survey_status' => 'Survey Request', 
+                'survey_status' => 'Survey Request',
             ]);
-    
-            return ApiFormatter::createAPI(200, 'Survey requested successfully',$survey,);
+
+            return ApiFormatter::createAPI(200, 'Survey requested successfully', $survey,);
         } catch (Exception $error) {
             return ApiFormatter::createAPI(400, 'Survey request failed', $error->getMessage());
         }
@@ -45,29 +60,27 @@ class SurveyController extends Controller
                 'approved_by' => 'nullable|exists:users,id',
                 'rejected_by' => 'nullable|exists:users,id'
             ]);
-    
+
             $survey = Survey::findOrFail($surveyId);
 
-            if ($request->role== 'operational') {
+            if ($request->role == 'operational') {
                 return ApiFormatter::createAPI(403, 'only operational can approve or reject surveys');
             }
-    
+
             $survey->survey_status = $request->survey_status;
             $survey->approved_by = $request->approved_by;
-    
+
             if ($request->has('rejected_by')) {
                 $survey->rejected_by = $request->rejected_by;
             }
-    
+
             $survey->save();
-    
+
             $lead = Lead::findOrFail($survey->lead_id);
             $lead->survey_status = $request->survey_status;
             $lead->save();
-    
-            return ApiFormatter::createAPI(200, 'Survey status updated successfully',$survey);
-            
-    
+
+            return ApiFormatter::createAPI(200, 'Survey status updated successfully', $survey);
         } catch (Exception $error) {
             Log::error("Error updating survey status: " . $error->getMessage());
             return ApiFormatter::createAPI(400, 'Survey status update failed', $error->getMessage());
@@ -112,10 +125,6 @@ class SurveyController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
-    {
-        //
-    }
 
     /**
      * Show the form for creating a new resource.
